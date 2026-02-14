@@ -12,6 +12,7 @@ from sklearn.metrics import (
     classification_report
 )
 from sklearn.preprocessing import LabelEncoder
+import os
 
 # ----------------------------
 # Page Config
@@ -20,10 +21,10 @@ st.set_page_config(page_title="2025AA05599 ML Assignment 2", layout="wide")
 
 st.title("🏦 Bank Marketing Classification App")
 st.markdown("### Compare Multiple Machine Learning Models")
-st.info("Upload the dataset once and switch between models to compare performance.")
+st.info("Default dataset is loaded automatically. You may upload a custom dataset to override it.")
 
 # -------------------------------------------------
-# Load Models (Cached for Performance)
+# Load Models (Cached)
 # -------------------------------------------------
 @st.cache_resource
 def load_models():
@@ -41,6 +42,19 @@ def load_models():
 models, scaler = load_models()
 
 # -------------------------------------------------
+# Load Default Dataset (Only Once)
+# -------------------------------------------------
+DEFAULT_DATA_PATH = "./data/bank-additional-full.csv"
+
+if "uploaded_data" not in st.session_state:
+    if os.path.exists(DEFAULT_DATA_PATH):
+        st.session_state.uploaded_data = pd.read_csv(DEFAULT_DATA_PATH, sep=';')
+        st.success("📂 Default dataset loaded successfully.")
+    else:
+        st.session_state.uploaded_data = None
+        st.warning("⚠️ Default dataset not found. Please upload a CSV file.")
+
+# -------------------------------------------------
 # Model Selection
 # -------------------------------------------------
 st.markdown("---")
@@ -50,18 +64,16 @@ model_choice = st.selectbox(
 )
 
 # -------------------------------------------------
-# Persistent File Upload
+# Optional File Upload (Override)
 # -------------------------------------------------
-if "uploaded_data" not in st.session_state:
-    st.session_state.uploaded_data = None
-
 uploaded_file = st.file_uploader(
-    "📂 Upload Test Dataset (CSV)",
+    "📂 Upload Custom Dataset (Optional)",
     type=["csv"]
 )
 
 if uploaded_file is not None:
     st.session_state.uploaded_data = pd.read_csv(uploaded_file, sep=';')
+    st.success("Custom dataset uploaded successfully!")
 
 # -------------------------------------------------
 # Run Model if Data Exists
@@ -76,12 +88,16 @@ if st.session_state.uploaded_data is not None:
     # -------------------------
     # Data Preview
     # -------------------------
-    st.subheader("📊 Uploaded Data Preview")
+    st.subheader("📊 Dataset Preview")
     st.dataframe(data.head())
 
     # -------------------------
     # Preprocessing
     # -------------------------
+    if 'y' not in data.columns:
+        st.error("Dataset must contain target column 'y'")
+        st.stop()
+
     data['y'] = data['y'].map({'no': 0, 'yes': 1})
 
     categorical_cols = data.select_dtypes(include=['object']).columns
@@ -91,10 +107,11 @@ if st.session_state.uploaded_data is not None:
 
     X = data.drop('y', axis=1)
     y = data['y']
+
     X = scaler.transform(X)
 
     # -------------------------
-    # Model Selection
+    # Model Prediction
     # -------------------------
     model = models[model_choice]
 
@@ -143,4 +160,4 @@ if st.session_state.uploaded_data is not None:
     st.text(classification_report(y, y_pred))
 
 else:
-    st.warning("⚠️ Please upload the dataset to evaluate models.")
+    st.warning("⚠️ Please upload a dataset to evaluate models.")
