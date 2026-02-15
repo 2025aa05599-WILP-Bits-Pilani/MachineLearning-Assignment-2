@@ -107,14 +107,7 @@ Table 2: Model Observations
 |KNN |Moderate performance with lower AUC.|
 |Naive Bayes |High recall but low precision (more false positives).|
 |Random Forest| Balanced precision and recall.|
-|XGBoost |Best overall performance with highest AUC, F1 and MCC.|
-
-- Logistic Regression achieved high AUC but lower recall for the minority class.
-- Decision Tree improved recall compared to Logistic Regression.
-- KNN showed moderate performance with lower AUC.
-- Naive Bayes achieved high recall but low precision due to more false positives.
-- Random Forest improved balance between precision and recall.
-- XGBoost achieved the best overall performance with the highest AUC, F1 Score, and MCC, making it the most balanced model for this dataset.
+|XGBoost |Best overall performance with highest AUC, F1 and MCC, making it the most balanced model for this dataset.|
 
 ---
 
