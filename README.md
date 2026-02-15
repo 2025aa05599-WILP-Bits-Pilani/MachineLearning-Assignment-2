@@ -100,17 +100,18 @@ Each model was evaluated using:
 
 ## 🔍 Observations
 Table 2: Model Observations
-Model Observation
-Logistic Regression High AUC but lower recall for minority
-class.
-Decision Tree Improved recall compared to Logistic
-Regression.
-KNN Moderate performance with lower AUC.
-Naive Bayes High recall but low precision (more false
-positives).
-Random Forest Balanced precision and recall.
-XGBoost Best overall performance with highest AUC,
-F1 and MCC.
+|Model |Observation|
+|--------|----------|
+|Logistic Regression | High AUC but lower recall for minority
+class.|
+|Decision Tree| Improved recall compared to Logistic
+Regression.|
+|KNN |Moderate performance with lower AUC.|
+|Naive Bayes |High recall but low precision (more false
+positives).|
+|Random Forest| Balanced precision and recall.|
+|XGBoost |Best overall performance with highest AUC,
+F1 and MCC.|
 
 - Logistic Regression achieved high AUC but lower recall for the minority class.
 - Decision Tree improved recall compared to Logistic Regression.
