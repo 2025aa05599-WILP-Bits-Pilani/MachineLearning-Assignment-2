@@ -1,10 +1,6 @@
 import streamlit as st
 import pandas as pd
 import joblib
-import numpy as np
-import os
-import matplotlib.pyplot as plt
-import seaborn as sns
 from sklearn.metrics import (
     accuracy_score,
     roc_auc_score,
@@ -13,30 +9,23 @@ from sklearn.metrics import (
     f1_score,
     matthews_corrcoef,
     confusion_matrix,
-    classification_report,
-    roc_curve
+    classification_report
 )
 from sklearn.preprocessing import LabelEncoder
+import os
 
 # ----------------------------
-# Page Configuration
+# Page Config
 # ----------------------------
-st.set_page_config(
-    page_title="2025AA05599 ML Assignment 2",
-    layout="wide"
-)
+st.set_page_config(page_title="2025AA05599 ML Assignment 2", layout="wide")
 
-st.title("🏦 Bank Marketing Classification Dashboard")
-st.markdown("### Advanced Multi-Model Comparison & Analysis")
+st.title("🏦 Bank Marketing Classification App")
+st.markdown("### Compare Multiple Machine Learning Models")
+st.info("Default dataset is loaded automatically. You may upload a custom dataset to override it.")
 
-# ----------------------------
-# Sidebar: Data & Config
-# ----------------------------
-st.sidebar.header("📂 Data Configuration")
-
-DEFAULT_DATA_PATH = "./data/bank-additional-full.csv"
-
+# -------------------------------------------------
 # Load Models (Cached)
+# -------------------------------------------------
 @st.cache_resource
 def load_models():
     models = {
@@ -50,36 +39,62 @@ def load_models():
     scaler = joblib.load("models/scaler.pkl")
     return models, scaler
 
-try:
-    models, scaler = load_models()
-except Exception as e:
-    st.error(f"Error loading models: {e}")
-    st.stop()
+models, scaler = load_models()
 
-# Data Loading Logic
+# -------------------------------------------------
+# Load Default Dataset (Only Once)
+# -------------------------------------------------
+DEFAULT_DATA_PATH = "./data/bank-additional-full.csv"
+
 if "uploaded_data" not in st.session_state:
     if os.path.exists(DEFAULT_DATA_PATH):
         st.session_state.uploaded_data = pd.read_csv(DEFAULT_DATA_PATH, sep=';')
-        st.sidebar.success("✅ Default dataset loaded.")
+        st.success("📂 Default dataset loaded successfully.")
     else:
         st.session_state.uploaded_data = None
-        st.sidebar.warning("⚠️ Default dataset not found.")
+        st.warning("⚠️ Default dataset not found. Please upload a CSV file.")
 
-# Custom Upload
-uploaded_file = st.sidebar.file_uploader("Upload Custom Dataset (Optional)", type=["csv"])
+# -------------------------------------------------
+# Model Selection
+# -------------------------------------------------
+st.markdown("---")
+model_choice = st.selectbox(
+    "🔽 Select Classification Model",
+    list(models.keys())
+)
+
+# -------------------------------------------------
+# Optional File Upload (Override)
+# -------------------------------------------------
+uploaded_file = st.file_uploader(
+    "📂 Upload Custom Dataset (Optional)",
+    type=["csv"]
+)
 
 if uploaded_file is not None:
     st.session_state.uploaded_data = pd.read_csv(uploaded_file, sep=';')
-    st.sidebar.success("✅ Custom dataset uploaded!")
+    st.success("Custom dataset uploaded successfully!")
 
-# ----------------------------
-# Main App Logic
-# ----------------------------
+# -------------------------------------------------
+# Run Model if Data Exists
+# -------------------------------------------------
 if st.session_state.uploaded_data is not None:
+
+    st.markdown("---")
+    st.success(f"✅ Model in Use: {model_choice}")
+
     data = st.session_state.uploaded_data.copy()
 
+    # -------------------------
+    # Data Preview
+    # -------------------------
+    st.subheader("📊 Dataset Preview")
+    st.dataframe(data.head())
+
+    # -------------------------
     # Preprocessing
-    if "y" not in data.columns:
+    # -------------------------
+    if 'y' not in data.columns:
         st.error("Dataset must contain target column 'y'")
         st.stop()
 
@@ -90,94 +105,59 @@ if st.session_state.uploaded_data is not None:
     for col in categorical_cols:
         data[col] = le.fit_transform(data[col])
 
-    X = data.drop("y", axis=1)
-    y = data["y"]
+    X = data.drop('y', axis=1)
+    y = data['y']
 
-    X_scaled = scaler.transform(X)
+    X = scaler.transform(X)
 
-    # ----------------------------
-    # TABS LAYOUT
-    # ----------------------------
-    tab1, tab2 = st.tabs(["📊 Model Comparison", "🔍 Individual Analysis"])
+    # -------------------------
+    # Model Prediction
+    # -------------------------
+    model = models[model_choice]
 
-    # --- TAB 1: MODEL COMPARISON ---
-    with tab1:
-        st.subheader("🏆 Model Performance Leaderboard")
-        
-        results = []
-        for name, model in models.items():
-            y_pred = model.predict(X_scaled)
-            y_prob = model.predict_proba(X_scaled)[:, 1]
+    y_pred = model.predict(X)
+    y_prob = model.predict_proba(X)[:, 1]
 
-            results.append({
-                "Model": name,
-                "Accuracy": accuracy_score(y, y_pred),
-                "AUC": roc_auc_score(y, y_prob),
-                "Precision": precision_score(y, y_pred),
-                "Recall": recall_score(y, y_pred),
-                "F1": f1_score(y, y_pred),
-                "MCC": matthews_corrcoef(y, y_pred)
-            })
+    # -------------------------
+    # Metrics Calculation
+    # -------------------------
+    accuracy = accuracy_score(y, y_pred)
+    auc = roc_auc_score(y, y_prob)
+    precision = precision_score(y, y_pred)
+    recall = recall_score(y, y_pred)
+    f1 = f1_score(y, y_pred)
+    mcc = matthews_corrcoef(y, y_pred)
 
-        results_df = pd.DataFrame(results).set_index("Model")
-        
-        col1, col2 = st.columns([1.2, 1])
-        
-        with col1:
-            st.caption("Detailed metrics for all models:")
-            st.dataframe(results_df.style.highlight_max(axis=0, color='lightgreen'), use_container_width=True)
-            
-        with col2:
-            st.caption("Accuracy vs AUC Comparison:")
-            st.bar_chart(results_df[["Accuracy", "AUC"]], height=400)
+    # -------------------------
+    # Display Metrics
+    # -------------------------
+    st.markdown("---")
+    st.subheader("📈 Evaluation Metrics")
 
-    # --- TAB 2: INDIVIDUAL ANALYSIS ---
-    with tab2:
-        st.subheader("🔬 Deep Dive Analysis")
-        
-        selected_model_name = st.selectbox("Select Model to Analyze", list(models.keys()))
-        model = models[selected_model_name]
-        
-        y_pred = model.predict(X_scaled)
-        y_prob = model.predict_proba(X_scaled)[:, 1]
-        
-        # Metrics Row
-        m1, m2, m3, m4 = st.columns(4)
-        m1.metric("Accuracy", f"{accuracy_score(y, y_pred):.4f}")
-        m1.metric("AUC", f"{roc_auc_score(y, y_prob):.4f}")
-        m2.metric("Precision", f"{precision_score(y, y_pred):.4f}")
-        m2.metric("Recall", f"{recall_score(y, y_pred):.4f}")
-        m3.metric("F1 Score", f"{f1_score(y, y_pred):.4f}")
-        m3.metric("MCC", f"{matthews_corrcoef(y, y_pred):.4f}")
-        
-        st.markdown("---")
-        
-        # Graphs Row
-        g1, g2 = st.columns(2)
-        
-        with g1:
-            st.write("**Confusion Matrix**")
-            cm = confusion_matrix(y, y_pred)
-            fig, ax = plt.subplots(figsize=(5, 4))
-            sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", ax=ax)
-            ax.set_xlabel("Predicted")
-            ax.set_ylabel("Actual")
-            st.pyplot(fig)
-            
-        with g2:
-            st.write("**ROC Curve**")
-            fpr, tpr, _ = roc_curve(y, y_prob)
-            fig2, ax2 = plt.subplots(figsize=(5, 4))
-            ax2.plot(fpr, tpr, label=f"AUC = {roc_auc_score(y, y_prob):.4f}")
-            ax2.plot([0, 1], [0, 1], linestyle="--", color="gray")
-            ax2.set_xlabel("False Positive Rate")
-            ax2.set_ylabel("True Positive Rate")
-            ax2.legend()
-            st.pyplot(fig2)
-            
-        st.markdown("---")
-        st.subheader("📄 Classification Report")
-        st.code(classification_report(y, y_pred))
+    col1, col2, col3 = st.columns(3)
+
+    col1.metric("Accuracy", round(accuracy, 4))
+    col1.metric("AUC Score", round(auc, 4))
+
+    col2.metric("Precision", round(precision, 4))
+    col2.metric("Recall", round(recall, 4))
+
+    col3.metric("F1 Score", round(f1, 4))
+    col3.metric("MCC", round(mcc, 4))
+
+    # -------------------------
+    # Confusion Matrix
+    # -------------------------
+    st.markdown("---")
+    st.subheader("🔢 Confusion Matrix")
+    st.write(confusion_matrix(y, y_pred))
+
+    # -------------------------
+    # Classification Report
+    # -------------------------
+    st.markdown("---")
+    st.subheader("📄 Classification Report")
+    st.text(classification_report(y, y_pred))
 
 else:
-    st.info("👈 Please upload a dataset in the sidebar to begin analysis.")
+    st.warning("⚠️ Please upload a dataset to evaluate models.")
